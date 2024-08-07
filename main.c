@@ -1,71 +1,36 @@
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
-#include "train.c"
+#include "train.h"
 
 int main() {
-    srand(time(NULL));  // Seed for random numbers
+    int num_layers = 4;
+    int num_neurons[] = {2, 2, 2, 1};  // Example sizes for input, hidden, and output layers
+    int hidden_size[] = {2, 2};        // Example sizes for hidden layers
 
-    // XOR problem
-    double input[4 * 2] = {0, 0, 0, 1, 1, 0, 1, 1};
-    double output[4 * 1] = {0, 1, 1, 0};
-
-    int input_size = 2;
-    int hidden_size = 2;
-    int output_size = 1;
-    printf("How many epochs do you want to run? ");
-    int epochs = 10000;  // Default value
-    scanf("%d", &epochs);
-    printf("What is the learning rate? ");
-    double learning_rate = 0.1;  // Default value
-    scanf("%lf", &learning_rate);
-
-    // Initialize weights and bias
-    double weights_input_hidden[2 * 2];
-    double bias_hidden[2];
-    double weights_hidden_output[2 * 1];
-    double bias_output[1];
-    initialize_weights(weights_input_hidden, 2 * 2);
-    initialize_weights(weights_hidden_output, 2 * 1);
-    initialize_weights(bias_hidden, 2);
-    initialize_weights(bias_output, 1);
-
-    train(input, output, weights_input_hidden, bias_hidden, weights_hidden_output, bias_output, input_size, hidden_size, output_size, epochs, learning_rate);
-
-    printf("\nPredictions:\n");
-    for (int i = 0; i < 4; ++i) {
-        double *hidden_layer = malloc(hidden_size * sizeof(double));
-        double *output_layer = malloc(output_size * sizeof(double));
-        double *hidden_layer_activation = malloc(hidden_size * sizeof(double));
-        double *output_layer_activation = malloc(output_size * sizeof(double));
-
-        for (int j = 0; j < hidden_size; ++j) {
-            hidden_layer_activation[j] = 0.0;
-            for (int k = 0; k < input_size; ++k) {
-                hidden_layer_activation[j] += input[i * input_size + k] * weights_input_hidden[j * input_size + k];
-            }
-            hidden_layer_activation[j] += bias_hidden[j];
-            hidden_layer[j] = sigmoid(hidden_layer_activation[j]);
-        }
-
-        for (int j = 0; j < output_size; ++j) {
-            output_layer_activation[j] = 0.0;
-            for (int k = 0; k < hidden_size; ++k) {
-                output_layer_activation[j] += hidden_layer[k] * weights_hidden_output[j * hidden_size + k];
-            }
-            output_layer_activation[j] += bias_output[j];
-            output_layer[j] = sigmoid(output_layer_activation[j]);
-        }
-
-        printf("Input: %f, %f -> Expected: %f Output: %f\n", input[i * input_size], input[i * input_size + 1], output[i], output_layer[0]);
-
-        free(hidden_layer);
-        free(output_layer);
-        free(hidden_layer_activation);
-        free(output_layer_activation);
+    // Create the architecture
+    if (create_architecture(num_layers, num_neurons, hidden_size) != 0) {
+        fprintf(stderr, "Error creating architecture\n");
+        return 1;
     }
+
+    // Allocate memory for layers
+    layer *layers = (layer *)malloc(num_layers * sizeof(layer));
+    for (int i = 0; i < num_layers; i++) {
+        layers[i] = create_layer(num_neurons[i]);
+    }
+
+    // Example training data
+    int num_training = 2;
+    double inputs[6] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6};  // Example inputs
+    double outputs[4] = {0.7, 0.8, 0.9, 1.0};           // Example outputs
+    double learning_rate = 0.01;
+
+    // Train the network
+    train(num_layers, num_neurons, layers, inputs, outputs, num_training, learning_rate);
+
+    // Free allocated memory
+    free_memory(num_layers, layers);
 
     return 0;
 }

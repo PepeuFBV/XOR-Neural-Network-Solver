@@ -1,91 +1,171 @@
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
 #include "extra.c"
 
-// Initialize weights with random values between -1 and 1
-void initialize_weights(double *weights, int size) {
-    for (int i = 0; i < size; ++i) {
-        weights[i] = (double)rand() / (double)RAND_MAX * 2.0 -
-                     1.0;  // Random value between -1 and 1
+typedef struct Neuron {
+    float activation;
+    float *out_weights;
+    float bias;
+    float z;
+
+    float dactv;
+    float *dw;
+    float dbias;
+    float dz;
+} Neuron;
+
+typedef struct layer {
+    int size;
+    Neuron *neurons;
+} layer;
+
+int get_inputs(int num_training, int num_inputs, double *(*inputs)) {
+    for (int i = 0; i < num_training; i++) {
+        printf("Enter the inputs for training %d: ", i + 1);
+
+        for (int j = 0; j < num_inputs; j++) {
+            scanf("%lf", &inputs[i][j]);
+        }
+    }
+    return 0;
+}
+
+int get_outputs(int num_training, int num_outputs, double *(*outputs)) {
+    for (int i = 0; i < num_training; i++) {
+        printf("Enter the outputs for training %d: ", i + 1);
+
+        for (int j = 0; j < num_outputs; j++) {
+            scanf("%lf", &outputs[i][j]);
+        }
+    }
+    return 0;
+}
+
+void forward_prop(int num_layers, int *num_neurons, layer *lay) {
+    for (int i = 1; i < num_layers; i++) {
+        for (int j = 0; j < num_neurons[i]; j++) {
+            lay[i].neurons[j].z = lay[i].neurons[j].bias;
+
+            for (int k = 0; k < num_neurons[i - 1]; k++) {
+                lay[i].neurons[j].z += lay[i - 1].neurons[k].out_weights[j] * lay[i - 1].neurons[k].activation;
+            }
+
+            // Relu Activation Function for Hidden Layers
+            if (i < num_layers - 1) {
+                if (lay[i].neurons[j].z < 0) {
+                    lay[i].neurons[j].activation = 0;
+                } else {
+                    lay[i].neurons[j].activation = lay[i].neurons[j].z;
+                }
+            } else {
+                // Sigmoid Activation function for Output Layer
+                lay[i].neurons[j].activation = 1 / (1 + exp(-lay[i].neurons[j].z));
+                printf("OUTPUT: %d\n", (int)round(lay[i].neurons[j].activation));
+                printf("\n");
+            }
+        }
     }
 }
 
-// Training the neural network
-void train(double *input, double *output, double *weights_input_hidden, double *bias_hidden, double *weights_hidden_output, double *bias_output, int input_size, int hidden_size, int output_size, int epochs, double learning_rate) {
-    double *hidden_layer = malloc(hidden_size * sizeof(double));
-    double *output_layer = malloc(output_size * sizeof(double));
-    double *hidden_layer_activation = malloc(hidden_size * sizeof(double));
-    double *output_layer_activation = malloc(output_size * sizeof(double));
-    double *hidden_layer_error = malloc(hidden_size * sizeof(double));
-    double *output_layer_error = malloc(output_size * sizeof(double));
-    double *hidden_layer_delta = malloc(hidden_size * sizeof(double));
-    double *output_layer_delta = malloc(output_size * sizeof(double));
-
-    for (int epoch = 0; epoch < epochs; ++epoch) {
-        double total_loss = 0.0;
-        for (int i = 0; i < 4; ++i) {  // 4 samples for XOR problem
-
-            // Forward pass
-            for (int j = 0; j < hidden_size; ++j) {
-                hidden_layer_activation[j] = 0.0;
-                for (int k = 0; k < input_size; ++k) {
-                    hidden_layer_activation[j] += input[i * input_size + k] * weights_input_hidden[j * input_size + k];
+void backwards(int num_layers, int *num_neurons, layer *lay, double *output) {
+    for (int i = num_layers - 1; i > 0; i--) {
+        for (int j = 0; j < num_neurons[i]; j++) {
+            if (i == num_layers - 1) {
+                lay[i].neurons[j].dactv = lay[i].neurons[j].activation - output[j];
+            } else {
+                lay[i].neurons[j].dactv = 0;
+                for (int k = 0; k < num_neurons[i + 1]; k++) {
+                    lay[i].neurons[j].dactv += lay[i + 1].neurons[k].dactv * lay[i + 1].neurons[k].out_weights[j];
                 }
-                hidden_layer_activation[j] += bias_hidden[j];
-                hidden_layer[j] = sigmoid(hidden_layer_activation[j]);
             }
 
-            for (int j = 0; j < output_size; ++j) {
-                output_layer_activation[j] = 0.0;
-                for (int k = 0; k < hidden_size; ++k) {
-                    output_layer_activation[j] += hidden_layer[k] * weights_hidden_output[j * hidden_size + k];
-                }
-                output_layer_activation[j] += bias_output[j];
-                output_layer[j] = sigmoid(output_layer_activation[j]);
-            }
-
-            // Calcula o erro
-            for (int j = 0; j < output_size; ++j) {
-                output_layer_error[j] = output[i * output_size + j] - output_layer[j];
-                output_layer_delta[j] = output_layer_error[j] * sigmoid_derivative(output_layer[j]);
-                total_loss += output_layer_error[j] * output_layer_error[j];
-            }
-
-            // Calculate hidden layer error
-            for (int j = 0; j < hidden_size; ++j) {
-                hidden_layer_error[j] = 0.0;
-                for (int k = 0; k < output_size; ++k) {
-                    hidden_layer_error[j] += output_layer_delta[k] * weights_hidden_output[k * hidden_size + j];
-                }
-                hidden_layer_delta[j] = hidden_layer_error[j] * sigmoid_derivative(hidden_layer[j]);
-            }
-
-            // Update weights and bias
-            for (int j = 0; j < hidden_size; ++j) {
-                for (int k = 0; k < input_size; ++k) {
-                    weights_input_hidden[j * input_size + k] += learning_rate * hidden_layer_delta[j] * input[i * input_size + k];
-                }
-                bias_hidden[j] += learning_rate * hidden_layer_delta[j];
-            }
-
-            for (int j = 0; j < output_size; ++j) {
-                for (int k = 0; k < hidden_size; ++k) {
-                    weights_hidden_output[j * hidden_size + k] += learning_rate * output_layer_delta[j] * hidden_layer[k];
-                }
-                bias_output[j] += learning_rate * output_layer_delta[j];
+            lay[i].neurons[j].dz = lay[i].neurons[j].dactv * sigmoid_derivative(lay[i].neurons[j].activation);
+            lay[i].neurons[j].dbias = lay[i].neurons[j].dz;
+            for (int k = 0; k < num_neurons[i - 1]; k++) {
+                lay[i].neurons[j].dw[k] = lay[i].neurons[j].dz * lay[i - 1].neurons[k].activation;
             }
         }
+    }
+}
 
-        // Print loss every n/25  n = number of epochs
-        if ((epoch + 1) % (epochs / 25) == 0) {
-            printf("Epoch %d, Loss: %f\n", epoch + 1, total_loss / 4.0);
+void update_weights(int num_layers, int *num_neurons, layer *lay, double learning_rate) {
+    for (int i = 1; i < num_layers; i++) {
+        for (int j = 0; j < num_neurons[i]; j++) {
+            lay[i].neurons[j].bias -= learning_rate * lay[i].neurons[j].dbias;
+            for (int k = 0; k < num_neurons[i - 1]; k++) {
+                lay[i].neurons[j].out_weights[k] -= learning_rate * lay[i].neurons[j].dw[k];
+            }
+        }
+    }
+}
+
+layer create_layer(int size) {
+    layer l;
+    l.size = size;
+    l.neurons = (Neuron *)malloc(size * sizeof(Neuron));
+    return l;
+}
+
+Neuron create_neuron(int num_weights) {
+    Neuron n;
+    n.out_weights = (float *)malloc(num_weights * sizeof(float));
+    n.dw = (float *)malloc(num_weights * sizeof(float));
+    return n;
+}
+
+int initialize_weights() {
+    // random weights between -1 and 1
+    srand(time(NULL));
+    for (int i = 0; i < 100; i++) {
+        float r = (float)rand() / (float)RAND_MAX;
+        r = r * 2 - 1;
+        // printf("%f\n", r);
+    }
+    return 0;  // SUCCESS_INIT_WEIGHTS
+}
+
+int create_architecture(int num_layers, int *sizes, int *hidden_size) {
+    layer *layers = (layer *)malloc(num_layers * sizeof(layer));
+
+    for (int i = 0; i < num_layers; i++) {
+        layers[i] = create_layer(sizes[i]);
+        printf("Layer %d has %d neurons\n", i + 1, layers[i].size);
+
+        for (int j = 0; j < sizes[i]; j++) {
+            if (i < (num_layers - 1)) {
+                layers[i].neurons[j] = create_neuron(hidden_size[i + 1]);
+            }
+            printf("Neuron %d has %d weights\n", j + 1, i + 1);
         }
     }
 
-    free(hidden_layer);
-    free(output_layer);
-    free(hidden_layer_activation);
-    free(output_layer_activation);
-    free(hidden_layer_error);
-    free(output_layer_error);
-    free(hidden_layer_delta);
-    free(output_layer_delta);
+    if (initialize_weights() != 0) {  // SUCCESS_INIT_WEIGHTS
+        return -1;                    // ERROR_CREATE_ARCHITECTURE
+    }
+
+    return 0;  // SUCCESS_CREATE_ARCHITECTURE
+}
+
+void free_memory(int num_layers, layer *lay) {
+    for (int i = 0; i < num_layers; i++) {
+        free(lay[i].neurons);
+    }
+    free(lay);
+}
+
+void train(int num_layers, int *num_neurons, layer *lay, double *inputs, double *outputs, int num_training, double learning_rate) {
+    for (int i = 0; i < num_training; i++) {
+        for (int j = 0; j < num_neurons[0]; j++) {
+            lay[0].neurons[j].activation = inputs[i * num_neurons[0] + j];
+        }
+
+        forward_prop(num_layers, num_neurons, lay);
+        backwards(num_layers, num_neurons, lay, outputs + i * num_neurons[num_layers - 1]);
+        update_weights(num_layers, num_neurons, lay, learning_rate);
+        printf("Training %d done\n", i + 1);
+    }
 }
