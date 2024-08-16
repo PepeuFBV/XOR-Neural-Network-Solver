@@ -1,36 +1,145 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <math.h>
 
-#include "train.h"
+inline static float rand_float(float a)
+{
+	return (float)rand() / (float)(RAND_MAX / a);
+}
 
-int main() {
-    int num_layers = 4;
-    int num_neurons[] = {2, 2, 2, 1};  // Example sizes for input, hidden, and output layers
-    int hidden_size[] = {2, 2};        // Example sizes for hidden layers
+inline static float tanh_activation(float x)
+{
+	return (1.0f - expf(-2 * x)) / (1.0f + expf(-2 * x));
+}
 
-    // Create the architecture
-    if (create_architecture(num_layers, num_neurons, hidden_size) != 0) {
-        fprintf(stderr, "Error creating architecture\n");
-        return 1;
-    }
+inline static float tanh_derivative(float x)
+{
+	float tanh_x = tanh_activation(x);
+	return 1 - tanh_x * tanh_x;
+}
 
-    // Allocate memory for layers
-    layer *layers = (layer *)malloc(num_layers * sizeof(layer));
-    for (int i = 0; i < num_layers; i++) {
-        layers[i] = create_layer(num_neurons[i]);
-    }
+int main()
+{
+	srand((unsigned int)time(NULL));
 
-    // Example training data
-    int num_training = 2;
-    double inputs[6] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6};  // Example inputs
-    double outputs[4] = {0.7, 0.8, 0.9, 1.0};           // Example outputs
-    double learning_rate = 0.01;
+	// XOR inputs and targets
+	float inputs[4][2] = {
+		{0, 0},
+		{0, 1},
+		{1, 0},
+		{1, 1}
+	};
+	float targets[4] = { 0, 1, 1, 0 }; // XOR outputs
 
-    // Train the network
-    train(num_layers, num_neurons, layers, inputs, outputs, num_training, learning_rate);
+	// Network parameters
+	float hidden_layer[4] = { 0 };		// 4 hidden neurons
+	float output_layer = 0;				// 1 output neuron
+	float input_weights[2][4] = { 0 };  // weights between input and hidden
+	float output_weights[4] = { 0 };    // weights between hidden and output
 
-    // Free allocated memory
-    free_memory(num_layers, layers);
+	// Initialize weights randomly between 0 and 1
+	for (int i = 0; i < 2; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			input_weights[i][j] = rand_float(1.0f);
 
-    return 0;
+			if (i == 0) // Initialize output weights once
+				output_weights[j] = rand_float(1.0f);
+		}
+	}
+
+	float learning_rate = 0.1f;
+	int epochs = 1000; // number of training iterations
+
+	// Training loop
+	for (int epoch = 0; epoch < epochs; epoch++)
+	{
+		float total_error = 0;
+
+		// For each input in the XOR dataset
+		for (int n = 0; n < 4; n++)
+		{
+			// Forward propagation
+			// 1. Calculate activations in hidden layer
+			for (int i = 0; i < 4; i++)
+			{
+				float sum = 0;
+				for (int j = 0; j < 2; j++)
+				{
+					sum += inputs[n][j] * input_weights[j][i];
+				}
+				hidden_layer[i] = tanh_activation(sum);
+			}
+
+			// 2. Calculate activation in output layer
+			float sum = 0;
+			for (int i = 0; i < 4; i++)
+			{
+				sum += hidden_layer[i] * output_weights[i];
+			}
+			output_layer = tanh_activation(sum);
+
+			// Calculate error
+			float error = targets[n] - output_layer;
+			total_error += error * error; // squared error
+
+			// Backpropagation
+			// 1. Calculate output layer error and update output weights
+			float output_delta = error * tanh_derivative(output_layer);
+			for (int i = 0; i < 4; i++)
+			{
+				output_weights[i] += learning_rate * output_delta * hidden_layer[i];
+			}
+
+			// 2. Calculate hidden layer error and update input weights
+			float hidden_error[4] = { 0 };
+			for (int i = 0; i < 4; i++)
+			{
+				hidden_error[i] = output_weights[i] * output_delta * tanh_derivative(hidden_layer[i]);
+			}
+
+			for (int i = 0; i < 2; i++)
+			{
+				for (int j = 0; j < 4; j++)
+				{
+					input_weights[i][j] += learning_rate * hidden_error[j] * inputs[n][i];
+				}
+			}
+		}
+
+		// Optionally print the error every 1000 epochs to track progress
+		/*if (epoch % 1000 == 0)
+		{*/
+			printf("Epoch %d, Total Error: %.6f\n", epoch, total_error);
+		//}
+	}
+
+	// After training, test the network on XOR inputs
+	printf("\nTrained network results:\n");
+	for (int n = 0; n < 4; n++)
+	{
+		// Forward propagation for testing
+		for (int i = 0; i < 4; i++)
+		{
+			float sum = 0;
+			for (int j = 0; j < 2; j++)
+			{
+				sum += inputs[n][j] * input_weights[j][i];
+			}
+			hidden_layer[i] = tanh_activation(sum);
+		}
+
+		float sum = 0;
+		for (int i = 0; i < 4; i++)
+		{
+			sum += hidden_layer[i] * output_weights[i];
+		}
+		output_layer = tanh_activation(sum);
+
+		printf("Input: %.0f %.0f, Output: %.2f (Expected: %.0f)\n", inputs[n][0], inputs[n][1], output_layer, targets[n]);
+	}
+
+	return 0;
 }
