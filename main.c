@@ -3,26 +3,17 @@
 #include <stdlib.h>
 #include <time.h>
 
-<<<<<<< Updated upstream
 // creates a random float between 0 and a
-=======
->>>>>>> Stashed changes
 inline static float rand_float(float a) {
     return (float)rand() / (float)(RAND_MAX / a);
 }
 
-<<<<<<< Updated upstream
 // tanh activation function
-=======
->>>>>>> Stashed changes
 inline static float tanh_activation(float x) {
     return (1.0f - expf(-2 * x)) / (1.0f + expf(-2 * x));
 }
 
-<<<<<<< Updated upstream
 // derivative of tanh activation function
-=======
->>>>>>> Stashed changes
 inline static float tanh_derivative(float x) {
     float tanh_x = tanh_activation(x);
     return 1 - tanh_x * tanh_x;
@@ -98,10 +89,7 @@ int main() {
                 hidden_error[i] = output_weights[i] * output_delta * tanh_derivative(hidden_layer[i]);
             }
 
-<<<<<<< Updated upstream
             // Update input weights
-=======
->>>>>>> Stashed changes
             for (int i = 0; i < 2; i++) {
                 for (int j = 0; j < 4; j++) {
                     input_weights[i][j] += learning_rate * hidden_error[j] * inputs[n][i];
@@ -109,28 +97,16 @@ int main() {
             }
         }
 
-<<<<<<< Updated upstream
-        // Optionally print the error every 100 epochs to track progress
-        /*if (epoch % 100 == 0)
-        {*/
-        printf("Epoch %d, Total Error: %.6f\n", epoch, total_error);
-        //}
-=======
         // Print the error every 100 epochs to track progress
         if (epoch % 100 == 0) {
             printf("Epoch %d, Total Error: %.6f\n", epoch, total_error);
         }
->>>>>>> Stashed changes
     }
 
     // After training, test the network on XOR inputs
     printf("\nTrained network results:\n");
     for (int n = 0; n < 4; n++) {
-<<<<<<< Updated upstream
-                // Forward propagation for testing
-=======
         // Forward propagation for testing
->>>>>>> Stashed changes
         for (int i = 0; i < 4; i++) {
             float sum = 0;
             for (int j = 0; j < 2; j++) {
