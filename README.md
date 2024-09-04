@@ -10,6 +10,12 @@ Implementation of a perceptron neural network with multiple layers and backpropa
 git clone https://github.com/PepeuFBV/XOR-Neural-Network-Solver
 ```
 
+- Navigate to the project's directory with the following command:
+
+```bash
+cd XOR-Neural-Network-Solver
+```
+
 - Compile the main.c file with the following command:
 
 ```bash
